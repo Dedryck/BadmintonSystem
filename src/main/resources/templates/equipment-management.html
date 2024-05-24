@@ -1,0 +1,238 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+
+<head>
+    <meta charset="UTF-8">
+    <title>设备管理</title>
+    <meta content="width=device-width, initial-scale=1.0" name="viewport">
+    <link href="/assets/vendor/bootstrap/css/bootstrap.min.css" rel="stylesheet">
+    <link href="/assets/vendor/bootstrap-icons/bootstrap-icons.css" rel="stylesheet">
+    <link href="/assets/vendor/boxicons/css/boxicons.min.css" rel="stylesheet">
+    <link href="/assets/vendor/quill/quill.snow.css" rel="stylesheet">
+    <link href="/assets/vendor/quill/quill.bubble.css" rel="stylesheet">
+    <link href="/assets/vendor/remixicon/remixicon.css" rel="stylesheet">
+    <link href="/assets/vendor/simple-datatables/style.css" rel="stylesheet">
+    <link href="/assets/css/style.css" rel="stylesheet">
+</head>
+
+<body>
+<!-- 引入顶部栏 -->
+<div th:replace="~{header :: header}"></div>
+<!-- ======= Sidebar ======= -->
+<div th:insert="~{sidebar :: sidebar}"></div><!-- End Sidebar-->
+
+<!-- ======= Main ======= -->
+<main id="main" class="main">
+    <div class="pagetitle">
+        <h1>设备管理</h1>
+        <nav>
+            <ol class="breadcrumb">
+                <li class="breadcrumb-item"><a href="/home">首页</a></li>
+                <li class="breadcrumb-item active">设备管理</li>
+            </ol>
+        </nav>
+    </div><!-- End Page Title -->
+
+    <section class="section dashboard">
+        <div class="row">
+            <div class="col-lg-12">
+                <div class="card">
+                    <div class="card-body">
+                        <h5 class="card-title">设备管理情况</h5>
+                        <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addEquipmentModal">添加设备</button>
+
+                        <!-- Success message -->
+                        <div th:if="${message}" class="alert alert-success" role="alert">
+                            <span th:text="${message}"></span>
+                        </div>
+
+                        <!-- Delete success message -->
+                        <div id="deleteSuccessMessage" class="alert alert-success d-none" role="alert">
+                            设备删除成功！
+                        </div>
+
+                        <!-- Table displaying equipment rentals -->
+                        <table class="table mt-3">
+                            <thead>
+                            <tr>
+                                <th>设备图片</th>
+                                <th>设备类型</th>
+                                <th>数量</th>
+                                <th>租借日期</th>
+                                <th>归还日期</th>
+                                <th>用户名</th>
+                                <th>状态</th>
+                                <th>操作</th>
+                            </tr>
+                            </thead>
+                            <tbody>
+                            <tr th:each="equipment : ${equipmentList}">
+                                <td>
+                                    <img th:src="@{${equipment.imagePath} + '?timestamp=' + ${#dates.format(#dates.createNow(), 'yyyyMMddHHmmss')}}" alt="设备图片" style="width: 50px; height: 50px;">
+                                </td>
+                                <td th:text="${equipment.equipmentType}"></td>
+                                <td th:text="${equipment.quantity}"></td>
+                                <td th:text="${#dates.format(equipment.rentalDate, 'yyyy-MM-dd')}"></td>
+                                <td th:text="${#dates.format(equipment.returnDate, 'yyyy-MM-dd')}"></td>
+                                <td th:text="${equipment.username}"></td>
+                                <td th:text="${equipment.status}"></td>
+                                <td>
+                                    <button type="button" class="btn btn-warning btn-sm" data-bs-toggle="modal" data-bs-target="#editEquipmentModal" th:data-id="${equipment.rentalID}">修改</button>
+                                    <button type="button" class="btn btn-danger btn-sm" th:data-id="${equipment.rentalID}" onclick="deleteEquipment(this)">删除</button>
+                                </td>
+                            </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+</main><!-- End Main -->
+
+<!-- Add Equipment Modal -->
+<div class="modal fade" id="addEquipmentModal" tabindex="-1" aria-labelledby="addEquipmentModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="addEquipmentModalLabel">添加设备</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form th:action="@{/add-equipment}" th:method="post" enctype="multipart/form-data">
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label for="equipmentType" class="form-label">设备类型</label>
+                        <input type="text" class="form-control" id="equipmentType" name="equipmentType" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="quantity" class="form-label">数量</label>
+                        <input type="number" class="form-control" id="quantity" name="quantity" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="rentalDate" class="form-label">租借日期</label>
+                        <input type="date" class="form-control" id="rentalDate" name="rentalDate" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="returnDate" class="form-label">归还日期</label>
+                        <input type="date" class="form-control" id="returnDate" name="returnDate">
+                    </div>
+                    <div class="mb-3">
+                        <label for="status" class="form-label">状态</label>
+                        <select class="form-control" id="status" name="status">
+                            <option value="rented">rented</option>
+                            <option value="returned">returned</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label for="image" class="form-label">设备图片</label>
+                        <input type="file" class="form-control" id="image" name="image" accept="image/*" required>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">关闭</button>
+                    <button type="submit" class="btn btn-primary">提交设备</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Edit Equipment Modal -->
+<div class="modal fade" id="editEquipmentModal" tabindex="-1" aria-labelledby="editEquipmentModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="editEquipmentModalLabel">修改设备</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form th:action="@{/edit-equipment}" th:method="post" enctype="multipart/form-data">
+                <div class="modal-body">
+                    <input type="hidden" id="editEquipmentId" name="rentalID">
+                    <div class="mb-3">
+                        <label for="editEquipmentType" class="form-label">设备类型</label>
+                        <input type="text" class="form-control" id="editEquipmentType" name="equipmentType" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="editQuantity" class="form-label">数量</label>
+                        <input type="number" class="form-control" id="editQuantity" name="quantity" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="editRentalDate" class="form-label">租借日期</label>
+                        <input type="date" class="form-control" id="editRentalDate" name="rentalDate" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="editReturnDate" class="form-label">归还日期</label>
+                        <input type="date" class="form-control" id="editReturnDate" name="returnDate">
+                    </div>
+                    <div class="mb-3">
+                        <label for="editStatus" class="form-label">状态</label>
+                        <select class="form-control" id="editStatus" name="status">
+                            <option value="rented">rented</option>
+                            <option value="returned">returned</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label for="editImage" class="form-label">设备图片</label>
+                        <input type="file" class="form-control" id="editImage" name="image" accept="image/*">
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">关闭</button>
+                    <button type="submit" class="btn btn-primary">修改设备</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script src="/assets/vendor/bootstrap/js/bootstrap.bundle.min.js"></script>
+<script src="/assets/vendor/quill/quill.js"></script>
+<script src="/assets/vendor/simple-datatables/simple-datatables.js"></script>
+<script src="/assets/vendor/tinymce/tinymce.min.js"></script>
+<script src="/assets/vendor/php-email-form/validate.js"></script>
+<script src="/assets/js/main.js"></script>
+
+<script>
+    function deleteEquipment(button) {
+        const id = button.getAttribute('data-id');
+        if (confirm('确定要删除这个设备吗？')) {
+            fetch(`/delete-equipment/${id}`, {
+                method: 'DELETE'
+            }).then(response => {
+                if (response.ok) {
+                    // 显示删除成功消息
+                    document.getElementById('deleteSuccessMessage').classList.remove('d-none');
+                    // 延迟1秒后隐藏消息并刷新页面
+                    setTimeout(() => {
+                        document.getElementById('deleteSuccessMessage').classList.add('d-none');
+                        location.reload();
+                    }, 1000);
+                } else {
+                    alert('删除失败，请稍后再试。');
+                }
+            });
+        }
+    }
+
+
+    document.querySelectorAll('button[data-bs-target="#editEquipmentModal"]').forEach(button => {
+        button.addEventListener('click', () => {
+            const id = button.getAttribute('data-id');
+            fetch(`/get-equipment/${id}`)
+                .then(response => response.json())
+                .then(data => {
+                    document.getElementById('editEquipmentId').value = data.rentalID;
+                    document.getElementById('editEquipmentType').value = data.equipmentType;
+                    document.getElementById('editQuantity').value = data.quantity;
+                    document.getElementById('editRentalDate').value = data.rentalDate.split('T')[0]; // 格式化日期
+                    document.getElementById('editReturnDate').value = data.returnDate ? data.returnDate.split('T')[0] : ''; // 格式化日期
+                    document.getElementById('editStatus').value = data.status;
+                    // If you want to display the image in the modal, you can add an <img> tag and set its src attribute here
+                });
+        });
+    });
+</script>
+
+</body>
+
+</html>
