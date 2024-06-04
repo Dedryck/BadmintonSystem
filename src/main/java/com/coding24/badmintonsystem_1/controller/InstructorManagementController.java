@@ -1,23 +1,23 @@
 package com.coding24.badmintonsystem_1.controller;
 
+import com.coding24.badmintonsystem_1.dto.ApiResponse;
 import com.coding24.badmintonsystem_1.entity.Instructor;
 import com.coding24.badmintonsystem_1.service.InstructorService;
+import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.userdetails.UserDetails;
-import org.springframework.stereotype.Controller;
-import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
-import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 
 import java.io.File;
 import java.io.IOException;
 import java.util.List;
 import java.util.UUID;
 
-@Controller
+@RestController
+@RequestMapping("/api/instructor-management")
 public class InstructorManagementController {
 
     private final InstructorService instructorService;
@@ -27,23 +27,23 @@ public class InstructorManagementController {
         this.instructorService = instructorService;
     }
 
-    @GetMapping("/instructor-management")
-    public String viewInstructorManagement(Model model) {
+    @GetMapping
+    public ApiResponse<List<Instructor>> viewInstructorManagement() {
         List<Instructor> instructorList = instructorService.findAll();
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-        String username = authentication.getName();
-        String role = authentication.getAuthorities().iterator().next().getAuthority();
-        model.addAttribute("username", username);
-        model.addAttribute("role", role);
-        model.addAttribute("instructors", instructorList);
-        model.addAttribute("activePage", "instructorManagement");
-        return "instructor-management";
+        String username = null;
+        String role = null;
+        if (authentication != null && authentication.getPrincipal() instanceof UserDetails) {
+            UserDetails userDetails = (UserDetails) authentication.getPrincipal();
+            username = userDetails.getUsername();
+            role = userDetails.getAuthorities().iterator().next().getAuthority();
+        }
+        return new ApiResponse<List<Instructor>>(0, "查询成功", instructorList);
     }
 
-    @PostMapping("/add-instructor")
-    public String addInstructor(@ModelAttribute Instructor instructor,
-                                @RequestParam("photo") MultipartFile photoFile,
-                                RedirectAttributes redirectAttributes) {
+    @PostMapping("/add")
+    public ApiResponse<Instructor> addInstructor(@Valid @ModelAttribute Instructor instructor,
+                                                 @RequestParam("photo") MultipartFile photoFile) {
         // 保存照片
         if (!photoFile.isEmpty()) {
             try {
@@ -53,21 +53,18 @@ public class InstructorManagementController {
                 instructor.setPhotoPath("/images/" + filename); // 保证路径正确
             } catch (IOException e) {
                 e.printStackTrace();
-                redirectAttributes.addFlashAttribute("message", "照片上传失败");
-                return "redirect:/instructor-management";
+                return new ApiResponse<>(1, "照片上传失败", null);
             }
         }
 
         // 插入教练信息到数据库
         instructorService.insertInstructor(instructor);
-        redirectAttributes.addFlashAttribute("message", "教练添加成功！");
-        return "redirect:/instructor-management";
+        return new ApiResponse<>(0, "教练添加成功", instructor);
     }
 
-    @PostMapping("/edit-instructor")
-    public String editInstructor(@ModelAttribute Instructor instructor,
-                                 @RequestParam("photo") MultipartFile photoFile,
-                                 RedirectAttributes redirectAttributes) {
+    @PostMapping("/edit")
+    public ApiResponse<Instructor> editInstructor(@Valid @ModelAttribute Instructor instructor,
+                                                  @RequestParam("photo") MultipartFile photoFile) {
         try {
             if (!photoFile.isEmpty()) {
                 String filename = UUID.randomUUID().toString() + "_" + photoFile.getOriginalFilename();
@@ -76,28 +73,26 @@ public class InstructorManagementController {
                 instructor.setPhotoPath("/images/" + filename);
             }
             instructorService.updateInstructor(instructor);
-            redirectAttributes.addFlashAttribute("message", "教练修改成功！");
+            return new ApiResponse<>(0, "教练修改成功", instructor);
         } catch (IOException e) {
             e.printStackTrace();
-            redirectAttributes.addFlashAttribute("message", "教练修改失败：" + e.getMessage());
+            return new ApiResponse<>(1, "教练修改失败：" + e.getMessage(), null);
         }
-        return "redirect:/instructor-management";
     }
 
-    @DeleteMapping("/delete-instructor/{instructorID}")
-    @ResponseBody
-    public String deleteInstructor(@PathVariable int instructorID) {
+    @DeleteMapping("/delete/{instructorID}")
+    public ApiResponse<Void> deleteInstructor(@PathVariable int instructorID) {
         try {
             instructorService.deleteInstructor(instructorID);
-            return "success";
+            return new ApiResponse<>(0, "删除成功", null);
         } catch (Exception e) {
-            return "failure";
+            return new ApiResponse<>(1, "删除失败：" + e.getMessage(), null);
         }
     }
 
-    @GetMapping("/get-instructor/{instructorID}")
-    @ResponseBody
-    public Instructor getInstructor(@PathVariable int instructorID) {
-        return instructorService.findById(instructorID);
+    @GetMapping("/get/{instructorID}")
+    public ApiResponse<Instructor> getInstructor(@PathVariable int instructorID) {
+        Instructor instructor = instructorService.findById(instructorID);
+        return new ApiResponse<>(0, "查询成功", instructor);
     }
 }

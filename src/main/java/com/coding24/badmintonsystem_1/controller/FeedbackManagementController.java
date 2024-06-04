@@ -1,21 +1,20 @@
 package com.coding24.badmintonsystem_1.controller;
 
+import com.coding24.badmintonsystem_1.dto.ApiResponse;
 import com.coding24.badmintonsystem_1.entity.Feedback;
 import com.coding24.badmintonsystem_1.service.FeedbackService;
 import com.coding24.badmintonsystem_1.service.UserService;
+import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.security.core.Authentication;
-import org.springframework.security.core.context.SecurityContextHolder;
-import org.springframework.stereotype.Controller;
-import org.springframework.ui.Model;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
-import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 
 import java.util.Date;
 import java.util.List;
 
-@Controller
-@RequestMapping("/feedback-management")
+@RestController
+@RequestMapping("/api/feedback-management")
+@PreAuthorize("hasRole('ADMIN')")
 public class FeedbackManagementController {
 
     private final FeedbackService feedbackService;
@@ -28,56 +27,39 @@ public class FeedbackManagementController {
     }
 
     @GetMapping
-    public String viewFeedbackManagement(Model model, @ModelAttribute("message") String message) {
+    public ApiResponse<List<Feedback>> viewFeedbackManagement() {
         List<Feedback> feedbackList = feedbackService.findAll();
-        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-        String username = authentication.getName();
-        Integer userID = userService.findByUsername(username).getUserID();
-        String role = authentication.getAuthorities().iterator().next().getAuthority();
-        model.addAttribute("username", username);
-        model.addAttribute("role", role);
-        model.addAttribute("userID", userID);
-        model.addAttribute("feedbacks", feedbackList);
-        model.addAttribute("newFeedback", new Feedback());
-        if (message != null && !message.isEmpty()) {
-            model.addAttribute("message", message); // 添加消息到模型
-        }
-        return "feedback-management";
+        return new ApiResponse<List<Feedback>>(0, "查询成功", feedbackList);
     }
 
-    @PostMapping("/add-feedbackmanagement")
-    public String addFeedback(@ModelAttribute Feedback feedback, @RequestParam String username, RedirectAttributes redirectAttributes) {
+    @PostMapping("/add")
+    public ApiResponse<Feedback> addFeedback(@Valid @RequestBody Feedback feedback, @RequestParam String username) {
         feedback.setUsername(username); // 设置用户名
         feedback.setFeedbackDate(new Date());
         feedbackService.insertFeedback(feedback);
-        redirectAttributes.addFlashAttribute("message", "反馈添加成功！");
-        return "redirect:/feedback-management";
+        return new ApiResponse<>(0, "反馈添加成功！", feedback);
     }
 
-    @PostMapping("/edit-feedback")
-    public String editFeedback(@ModelAttribute Feedback feedback, RedirectAttributes redirectAttributes) {
+    @PostMapping("/edit")
+    public ApiResponse<Feedback> editFeedback(@Valid @RequestBody Feedback feedback) {
         feedback.setFeedbackDate(new Date());
         feedbackService.updateFeedback(feedback);
-        redirectAttributes.addFlashAttribute("message", "反馈修改成功！");
-        return "redirect:/feedback-management";
+        return new ApiResponse<>(0, "反馈修改成功！", feedback);
     }
 
-    @DeleteMapping("/delete-feedback/{feedbackID}")
-    @ResponseBody
-    public String deleteFeedback(@PathVariable int feedbackID,RedirectAttributes redirectAttributes) {
+    @DeleteMapping("/delete/{feedbackID}")
+    public ApiResponse<Void> deleteFeedback(@PathVariable int feedbackID) {
         try {
             feedbackService.deleteFeedback(feedbackID);
-            redirectAttributes.addFlashAttribute("message", "反馈删除成功！");
-
-            return "success";
+            return new ApiResponse<>(0, "反馈删除成功！", null);
         } catch (Exception e) {
-            return "failure";
+            return new ApiResponse<>(1, "反馈删除失败：" + e.getMessage(), null);
         }
     }
 
-    @GetMapping("/get-feedback/{feedbackID}")
-    @ResponseBody
-    public Feedback getFeedback(@PathVariable int feedbackID) {
-        return feedbackService.findById(feedbackID);
+    @GetMapping("/get/{feedbackID}")
+    public ApiResponse<Feedback> getFeedback(@PathVariable int feedbackID) {
+        Feedback feedback = feedbackService.findById(feedbackID);
+        return new ApiResponse<>(0, "查询成功", feedback);
     }
 }

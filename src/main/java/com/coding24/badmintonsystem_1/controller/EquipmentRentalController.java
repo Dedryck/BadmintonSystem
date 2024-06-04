@@ -1,56 +1,43 @@
 package com.coding24.badmintonsystem_1.controller;
 
+import com.coding24.badmintonsystem_1.dto.ApiResponse;
 import com.coding24.badmintonsystem_1.entity.EquipmentRental;
 import com.coding24.badmintonsystem_1.service.EquipmentRentalService;
+import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.userdetails.UserDetails;
-import org.springframework.stereotype.Controller;
-import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
-import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 
 import java.io.File;
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
-import java.util.stream.Collectors;
 
-@Controller
+@RestController
+@RequestMapping("/api/equipment-rentals")
 public class EquipmentRentalController {
 
     @Autowired
     private EquipmentRentalService equipmentRentalService;
 
-    @GetMapping("/equipment-rentals")
-    public String viewEquipmentRentals(Model model, @RequestParam(value = "message", required = false) String message) {
-        List<EquipmentRental> equipmentRentals = equipmentRentalService.findAll();
-
-        // 获取当前用户信息
-        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
-        if (auth != null && auth.getPrincipal() instanceof UserDetails) {
-            UserDetails userDetails = (UserDetails) auth.getPrincipal();
-            model.addAttribute("username", userDetails.getUsername());
-            model.addAttribute("role", auth.getAuthorities().stream()
-                    .map(grantedAuthority -> grantedAuthority.getAuthority())
-                    .collect(Collectors.joining(", ")));
-        }
-
-        if (message != null) {
-            model.addAttribute("message", message);
-        }
-
-        model.addAttribute("equipmentRentals", equipmentRentals);
-        model.addAttribute("activePage", "equipmentRentals");
-        return "equipment-rentals";
+    @GetMapping
+    public ApiResponse<EquipmentRental> getAllRentals() {
+        List<EquipmentRental> rentals = equipmentRentalService.findAll();
+        return new ApiResponse<>(0, "查询成功", rentals);
     }
 
-    @PostMapping("/add-rental")
-    public String addEquipmentRental(@ModelAttribute EquipmentRental equipmentRental,
-                                     @RequestParam("image") MultipartFile imageFile,
-                                     RedirectAttributes redirectAttributes) {
+    @PostMapping
+    public ApiResponse<EquipmentRental> addEquipmentRental(@Valid @ModelAttribute EquipmentRental equipmentRental,
+                                                           @RequestParam("image") MultipartFile imageFile) {
+        List<EquipmentRental> responseData = new ArrayList<>();
+
+        System.out.println("Received EquipmentRental: " + equipmentRental);
+        System.out.println("Received Image File: " + imageFile.getOriginalFilename());
+
         // 保存图片
         if (!imageFile.isEmpty()) {
             try {
@@ -60,8 +47,7 @@ public class EquipmentRentalController {
                 equipmentRental.setImagePath("/images/" + filename); // 保证路径正确
             } catch (IOException e) {
                 e.printStackTrace();
-                redirectAttributes.addFlashAttribute("message", "图片上传失败");
-                return "redirect:/equipment-rentals";
+                return new ApiResponse<>(1, "图片上传失败", null);
             }
         }
 
@@ -71,12 +57,14 @@ public class EquipmentRentalController {
             UserDetails userDetails = (UserDetails) auth.getPrincipal();
             equipmentRental.setUsername(userDetails.getUsername());
         }
+        // 检查状态值
+        if (!equipmentRental.getStatus().equals("rented") && !equipmentRental.getStatus().equals("returned")) {
+            return new ApiResponse<>(1, "无效的状态值", null);
+        }
 
         // 插入租借信息到数据库
         equipmentRentalService.insertEquipmentRental(equipmentRental);
-        redirectAttributes.addFlashAttribute("message", "租借成功");
-        return "redirect:/equipment-rentals";
+        responseData.add(equipmentRental);
+        return new ApiResponse<>(0, "租借成功", responseData);
     }
-
-
 }

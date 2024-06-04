@@ -1,20 +1,21 @@
 package com.coding24.badmintonsystem_1.controller;
 
+import com.coding24.badmintonsystem_1.dto.ApiResponse;
 import com.coding24.badmintonsystem_1.entity.Feedback;
 import com.coding24.badmintonsystem_1.service.FeedbackService;
 import com.coding24.badmintonsystem_1.service.UserService;
+import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
-import org.springframework.stereotype.Controller;
-import org.springframework.ui.Model;
+import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.web.bind.annotation.*;
-import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 
 import java.util.Date;
 import java.util.List;
 
-@Controller
+@RestController
+@RequestMapping("/api/feedback")
 public class FeedbackController {
 
     private final FeedbackService feedbackService;
@@ -26,28 +27,22 @@ public class FeedbackController {
         this.userService = userService;
     }
 
-    @GetMapping("/feedback")
-    public String viewFeedbackPage(Model model, @ModelAttribute("message") String message) {
+    @GetMapping
+    public ApiResponse<List<Feedback>> viewFeedback() {
         List<Feedback> feedbackList = feedbackService.findAll();
-        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-        String username = authentication.getName();
-        Integer userID = userService.findByUsername(username).getUserID();
-        String role = authentication.getAuthorities().iterator().next().getAuthority();
-        model.addAttribute("username", username);
-        model.addAttribute("role", role);
-        model.addAttribute("userID", userID);
-        model.addAttribute("feedbacks", feedbackList);
-        model.addAttribute("newFeedback", new Feedback());
-        model.addAttribute("message", message); // 添加消息到模型
-        return "feedback";
+        return new ApiResponse<List<Feedback>>(0, "查询成功", feedbackList);
     }
 
-    @PostMapping("/add-feedback")
-    public String addFeedback(@ModelAttribute Feedback feedback, @RequestParam String username, RedirectAttributes redirectAttributes) {
-        feedback.setUsername(username); // 设置用户名
+    @PostMapping("/add")
+    public ApiResponse<Feedback> addFeedback(@Valid @RequestBody Feedback feedback, @RequestParam String username) {
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        if (auth != null && auth.getPrincipal() instanceof UserDetails) {
+            UserDetails userDetails = (UserDetails) auth.getPrincipal();
+            feedback.setUsername(userDetails.getUsername());
+        }
         feedback.setFeedbackDate(new Date());
         feedbackService.insertFeedback(feedback);
-        redirectAttributes.addFlashAttribute("message", "反馈添加成功！");
-        return "redirect:/feedback";
+        return new ApiResponse<>(0, "反馈添加成功", feedback);
     }
 }
+

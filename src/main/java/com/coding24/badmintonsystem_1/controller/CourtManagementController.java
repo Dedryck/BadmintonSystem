@@ -1,66 +1,60 @@
 package com.coding24.badmintonsystem_1.controller;
 
+import com.coding24.badmintonsystem_1.dto.ApiResponse;
 import com.coding24.badmintonsystem_1.entity.Court;
 import com.coding24.badmintonsystem_1.service.CourtService;
+import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.userdetails.UserDetails;
-import org.springframework.stereotype.Controller;
-import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 
-@Controller
-@RequestMapping("/court-management")
+@RestController
+@RequestMapping("/api/court-management")
 public class CourtManagementController {
 
     @Autowired
     private CourtService courtService;
 
     @GetMapping
-    public String viewCourtManagement(Model model, @RequestParam(value = "message", required = false) String message) {
-        // 获取当前用户信息
+    public ApiResponse<List<Court>> viewCourtManagement() {
         Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        String username = null;
+        String role = null;
         if (auth != null && auth.getPrincipal() instanceof UserDetails) {
             UserDetails userDetails = (UserDetails) auth.getPrincipal();
-            model.addAttribute("username", userDetails.getUsername());
-            model.addAttribute("role", userDetails.getAuthorities().iterator().next().getAuthority());
+            username = userDetails.getUsername();
+            role = userDetails.getAuthorities().iterator().next().getAuthority();
         }
 
         List<Court> courts = courtService.findAll();
-        model.addAttribute("courts", courts);
-        model.addAttribute("message", message);
-        model.addAttribute("activePage", "courtManagement");
-        return "court-management";
+        return new ApiResponse<List<Court>>(0, "查询成功", courts);
     }
 
     @PostMapping("/add")
-    @ResponseBody
-    public String addCourt(@ModelAttribute Court court) {
+    public ApiResponse<Court> addCourt(@Valid @RequestBody Court court) {
         courtService.insertCourt(court);
-        return "{\"message\": \"场地添加成功\"}";
+        return new ApiResponse<>(0, "场地添加成功", court);
     }
 
     @PostMapping("/edit")
-    @ResponseBody
-    public String editCourt(@ModelAttribute Court court) {
+    public ApiResponse<Court> editCourt(@Valid @RequestBody Court court) {
         courtService.updateCourt(court);
-        return "{\"message\": \"场地修改成功\"}";
+        return new ApiResponse<>(0, "场地修改成功", court);
     }
 
     @DeleteMapping("/delete/{courtID}")
-    @ResponseBody
-    public String deleteCourt(@PathVariable Integer courtID) {
+    public ApiResponse<Void> deleteCourt(@PathVariable Integer courtID) {
         courtService.deleteCourt(courtID);
-        return "{\"message\": \"场地删除成功\"}";
+        return new ApiResponse<>(0, "场地删除成功", null);
     }
 
     @GetMapping("/list")
-    public String listCourts(Model model) {
+    public ApiResponse<List<Court>> listCourts() {
         List<Court> courts = courtService.findAll();
-        model.addAttribute("courts", courts);
-        return "court-management :: courtTableBody";
+        return new ApiResponse<List<Court>>(0, "查询成功", courts);
     }
 }
